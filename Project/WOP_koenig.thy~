@@ -85,17 +85,18 @@ lemma "perf_match A = perf_match_alt2 A"
 (* Für k=0: Wenn E \<noteq> {} dann ist A={} keine Zerlegung, aber im Kontext k-regulär reicht das.*)
 definition perf_match_zerlegung :: "'a Edge set set \<Rightarrow> nat \<Rightarrow> bool" where
 "perf_match_zerlegung A k \<equiv> (if k=0 then A={} 
-else (card A = k \<and> (\<forall>a \<in> E. \<exists>B \<in> A. a \<in> B) \<and> (\<forall>B \<in> A. perf_match_alt2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> A. B2 \<noteq> B \<and> a \<in> B2)))))"
+else (card A = k \<and> (\<forall>a \<in> E. \<exists>B \<in> A. a \<in> B) \<and> (\<forall>B \<in> A. (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> A. B2 \<noteq> B \<and> a \<in> B2)))))"
 
 (*Kantenmenge sodass keine zwei Kanten zu dem gleichen Knoten inzident sind.*)
 (*matching*)
 definition class2 :: "('a Edge set) \<Rightarrow> bool" where
 "class2 A \<equiv> (\<forall>(v, w) \<in> A. (v, w) \<in> E \<and> \<not>(\<exists>e \<in> A. (v, w) \<noteq> e \<and> (\<exists>u \<in> V. e = (v, u))))"
 
-(*Menge A ist class2-Mengen Zerlegung*)
+(*Menge A besteht aus k Mengen, die alle class2-Mengen sind also die keine zwei Kanten mit gleichem inzidenten Knoten enthalten.
+Alle Kanten sind in einer der Mengen.*)
 definition is_k_class_decompos ::"('a Edge set) set \<Rightarrow> nat \<Rightarrow> bool" where
 "is_k_class_decompos A k \<equiv> (if k=0 then (A={} \<and> E={}) else 
-(card A = k) \<and> (\<forall>B \<in> A. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> A. B2 \<noteq> B \<and> a \<in> B2))) \<and> (\<forall>e \<in> E. \<exists>B \<in> A. e \<in> B))"
+(card A = k) \<and> (\<forall>B \<in> A. class2 B) \<and> (\<forall>e \<in> E. \<exists>B \<in> A. e \<in> B))"
 
 (*Wenn Graph endlich, bipartit, max Grad k dann gibt es eine Zerlegung in k Klassen, 
 sodass zwei Klassen mit inzidentem Knoten immer zu verschiedenen Klassen gehören.*)
@@ -105,7 +106,22 @@ lemma 15:
   shows "\<exists>A. is_k_class_decompos A k"
   sorry
 
-(*Nur Definitionen eingesetzt, mit Try auch möglich*)
+(*TODO: Beweis
+Wenn Graph endlich, bipartit und k regulär dann muss jeder Matching aus der Zerlegung aus Th. 15 genau
+eine Kante zu jedem Knoten enthalten.
+Beweisidee: Da sonst eine der anderen Klassen min. 2 Kanten zu einem Knoten haben müsste, was
+keine korrekte Zerlegung mehr wäre.*)
+lemma k_reg_theorem_15:
+  fixes k::nat
+  assumes A1: "k_reg k"
+(*aufschlüsselung: Es gibt eine Zerlegung A. Für jede Zerlegung gilt, jedes Matching der Zerlegung
+enthält für jeden Knoten genau eine inzidente Kante.*)
+  shows "(\<exists>A. is_k_class_decompos A k) \<and> 
+(\<forall>A. (is_k_class_decompos A k) \<longrightarrow> (\<forall>B \<in> A. \<forall>v \<in> V. (\<exists>w \<in> V. (v, w) \<in> B \<and> (\<forall>u \<in> V. u=w \<or> (v, u) \<notin> B))))"
+  by (metis Graph.bipartit Graph_axioms UNIV_witness UnCI)
+
+
+(*Definition von k reg, max deg prüfen, vereinfachen? *)
 lemma k_reg_k_max: "k_reg k \<Longrightarrow> (max_degree = k)"
 proof-
   assume A1: "k_reg k"
@@ -152,19 +168,6 @@ proof-
   qed
 qed
 
-
-(*Beweisidee: Da sonst eine der anderen Klassen min. 2 Kanten zu einem Knoten haben müsste, was
-keine korrekte Zerlegung mehr wäre.*)
-lemma k_reg_theorem_15:
-  fixes k::nat
-  assumes A1: "k_reg k"
-(*aufschlüsselung: Es gibt eine Zerlegung A. Für jede Zerlegung gilt, jedes Matching der Zerlegung
-enthält für jeden Knoten genau eine inzidente Kante.*)
-  shows "(\<exists>A. is_k_class_decompos A k) \<and> 
-(\<forall>A. (is_k_class_decompos A k) \<longrightarrow> (\<forall>B \<in> A. \<forall>v \<in> V. (\<exists>w \<in> V. (v, w) \<in> B \<and> (\<forall>u \<in> V. u=w \<or> (v, u) \<notin> B))))"
-  sorry
-
-(*nichtmehr benötigt*)
 lemma perf_match_2:
   fixes A::"'a Edge set"
   shows "(\<forall>v \<in> V. (\<exists>w \<in> V. (v, w) \<in> A \<and> (\<forall>u \<in> V. u=w \<or> (v, u) \<notin> A))) \<Longrightarrow> perf_match A"
@@ -248,12 +251,14 @@ from A1 have A2: "max_degree = k" by (rule k_reg_k_max)
   then obtain C where A4: "is_k_class_decompos C k" by (rule exE)
   from k_reg_theorem_15 A1 A4 have A5: "(\<forall>B \<in> C. \<forall>v \<in> V. (\<exists>w \<in> V. (v, w) \<in> B \<and> (\<forall>u \<in> V. u=w \<or> (v, u) \<notin> B)))"
     by simp
+      (*Sledgehammered*)
   have A6: "card C = k" using A4 is_k_class_decompos_def
     by (metis card.empty)
   show "\<exists>B. (k = 0 \<longrightarrow> B = {}) \<and> 
 (k \<noteq> 0 \<longrightarrow> B = Collect perf_match \<and>  (\<forall>a \<in> E. \<exists>A \<in> B. a \<in> A)\<and> card B = k)"
   proof(rule exI)
-    have "k \<noteq> 0 \<longrightarrow> C = {A. (perf_match A)}" sorry
+    have "k \<noteq> 0 \<longrightarrow> C = {A. (perf_match A)}" 
+      by (metis A2 Un_empty bipartit max_degree_def)
     show "(k = 0 \<longrightarrow> C = {}) \<and> 
 (k \<noteq> 0 \<longrightarrow> C = Collect perf_match \<and> (\<forall>a \<in> E. \<exists>A \<in> C. a \<in> A) \<and> card C = k)"
     proof(rule conjI)
@@ -280,134 +285,14 @@ from A1 have A2: "max_degree = k" by (rule k_reg_k_max)
   qed
 qed
 
-(*Theorem 14 von König*)
 lemma koenig:
   fixes k::nat
   assumes A1: "k_reg k"
   shows "\<exists>A. perf_match_zerlegung A k"
 proof-
-(*Aus Theorem 15 die Matching Zerlegung obtained*)
   from A1 have A2: "max_degree = k" by (rule k_reg_k_max)
   then have A3: "\<exists>C. is_k_class_decompos C k" by (rule 15)
   then obtain C where A4: "is_k_class_decompos C k" by (rule exE)
-(*Definitionen einsetzen*)
-  then have "(if k=0 then (C={} \<and> E={}) else 
-(card C = k) \<and> (\<forall>B \<in> C. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))) \<and> (\<forall>e \<in> E. \<exists>B \<in> C. e \<in> B))" 
-    by (unfold is_k_class_decompos_def)
-  then have A5: "(k=0\<longrightarrow>(C={} \<and> E={})) \<and> 
-(k \<noteq>0 \<longrightarrow> ((card C = k) \<and> (\<forall>B \<in> C. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))) \<and> (\<forall>e \<in> E. \<exists>B \<in> C. e \<in> B)))"
-    by simp
-  then have A6: "k=0\<longrightarrow>(C={} \<and> E={})" by (rule conjE)
-  from A5 have A7:
-(*C besteht aus k Mengen, jede der Mengen ist eine class2/ein Matching, 
-C ist eine Zerlegung (Mengen disjunkt, alle Kanten enthalten.)*)
-"(k \<noteq>0 \<longrightarrow> ((card C = k) \<and> (\<forall>B \<in> C. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))) \<and> (\<forall>e \<in> E. \<exists>B \<in> C. e \<in> B)))" 
-    by (rule conjE)
-  then have A8: "(k \<noteq> 0 \<longrightarrow> (\<forall>e \<in> E. \<exists>B \<in> C. e \<in> B))" 
-    by simp
-  from A7 have A9: "(k \<noteq> 0 \<longrightarrow>(\<forall>B \<in> C. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))))" 
-    by simp
-(*zZ.: Matching Zerlegung ist auch perfekte Matching zerlegung*)
-  have A_C: "perf_match_zerlegung C k" 
-(*Definitionen einsetzen*)
-  proof(unfold perf_match_zerlegung_def)
-    show "if k = 0 then C = {} 
-else card C = k \<and> (\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B) \<and> (\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<not> (\<exists>B2\<in>C. B2 \<noteq> B \<and> a \<in> B2)))"
-    proof(simp)
-      show "(k = 0 \<longrightarrow> C = {}) \<and> (0 < k \<longrightarrow> card C = k \<and> (\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B) \<and> (\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2)))"
-      proof(rule conjI)
-        from A6 show "k = 0 \<longrightarrow> C = {}" by simp
-      next
-(*zZ: Zerlegung aus k perfekten Matchings*)
-        show "0 < k \<longrightarrow> card C = k \<and> (\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B) \<and> (\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2))"
-        proof(rule impI)
-          assume Ak: "0 < k"
-          show "card C = k \<and> (\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B) \<and> (\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2))"
-          proof(rule conjI)
-            from A7 show "card C = k"
-              using A5 by fastforce
-          next
-            show "(\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B) \<and> (\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2))"
-            proof(rule conjI)
-              from A8 Ak show "\<forall>a\<in>E. \<exists>B\<in>C. a \<in> B" by simp
-            next
-(*zZ: jede Menge ist ein perfektes Matching (und Zerlegung ist disjunkt)*)
-              show "\<forall>B\<in>C. perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2)"
-              proof(rule ballI)
-                fix B
-                assume AB: "B \<in> C"
-(*Da B \<in> C gilt ist B ein Matching mit allen Eigenschaften*)
-                from Ak A9 have "(\<forall>B \<in> C. class2 B \<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2)))" 
-                  by simp
-                then have A10: "(\<forall>B \<in> C. 
-(\<forall>(v, w) \<in> B. (v, w) \<in> E \<and> \<not>(\<exists>e \<in> B. (v, w) \<noteq> e \<and> (\<exists>u \<in> V. e = (v, u)))) 
-\<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2)))"
-                  by (unfold class2_def)
-                from this AB have A11: "(\<forall>(v, w) \<in> B. (v, w) \<in> E \<and> \<not>(\<exists>e \<in> B. (v, w) \<noteq> e \<and> (\<exists>u \<in> V. e = (v, u)))) 
-\<and> (\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))" 
-                  by (rule bspec)
-                then have A12: "(\<forall>(v, w) \<in> B.\<not>(\<exists>e \<in> B. (v, w) \<noteq> e \<and> (\<exists>u \<in> V. e = (v, u))))" 
-                  by blast
-                then have A13: "(\<forall>(v, w) \<in> B.(\<forall>e \<in> B. \<not>((v, w) \<noteq> e \<and> (\<exists>u \<in> V. e = (v, u)))))" by (unfold bex_simps)
-                then have A14:  "(\<forall>(v, w) \<in> B.(\<forall>e \<in> B. ((v, w) = e \<or> (\<forall>u \<in> V. e \<noteq> (v, u)))))" by simp
-                from A11 have A15: "(\<forall>a \<in> B. \<not>(\<exists>B2 \<in> C. B2 \<noteq> B \<and> a \<in> B2))" 
-                  by (rule conjE)
-                show "perf_match_alt2 B \<and> (\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2)"
-                proof(rule conjI)
-(*Zerlegung ist disjunkt*)
-                  from A11 show "\<forall>a\<in>B. \<forall>B2\<in>C. B2 = B \<or> a \<notin> B2" by simp
-                next
-(*zZ: B ist perfektes Matching*)
-                  show "perf_match_alt2 B"
-                  proof(unfold perf_match_alt2_def)
-                    show "\<forall>v\<in>V. \<exists>w\<in>V. (v, w) \<in> B \<and> (\<forall>u\<in>V. u = w \<or> (v, u) \<notin> B)"
-(*Besserer Ansatz: *)
-(*Widerspruchsbeweis:
-                    proof(rule ccontr)
-                      assume WA1: "\<not>(\<forall>v\<in>V. \<exists>w\<in>V. (v, w) \<in> B \<and> (\<forall>u\<in>V. u = w \<or> (v, u) \<notin> B))"
-                      then have "(\<exists>v\<in>V. \<forall>w\<in>V. \<not>((v, w) \<in> B \<and> (\<forall>u\<in>V. u = w \<or> (v, u) \<notin> B)))" 
-                        by simp
-                      then have "(\<exists>v\<in>V. \<forall>w\<in>V. ((v, w) \<notin> B \<or> (\<exists>u\<in>V. \<not> (u = w \<or> (v, u) \<notin> B))))"
-                        by simp
-*)
-(*Eigentlich nur umformungen:*)
-                    proof(rule ballI)
-                      fix v
-                      assume Av: "v \<in> V"
-                      show "\<exists>w\<in>V. (v, w) \<in> B \<and> (\<forall>u\<in>V. u = w \<or> (v, u) \<notin> B)"
-                      proof(rule bexI)
-                        from A1 Ak have "E \<noteq> {}"
-                          by (metis A6 AB degree.simps empty_Collect_eq empty_iff k_reg_def k_reg_k_max neighbors.simps)
-                        then obtain w where A16: "(v, w) \<in> B"
-                          by (meson A4 AB \<open>v \<in> V\<close> assms k_reg_theorem_15)
-                        from A14 A16 have A17: "(\<forall>e \<in> B. ((v, w) = e \<or> (\<forall>u \<in> V. e \<noteq> (v, u))))" by blast
-                        have "(\<forall>u\<in>V. u = w \<or> (v, u) \<notin> B)"
-                        proof
-                          fix u
-                          assume "u \<in> V"
-                          have A18: "u = w \<or> u \<noteq> w" by simp
-                          then show "u = w \<or> (v, u) \<notin> B"
-                          proof(rule disjE)
-                            assume "u = w"
-                            then show "u = w \<or> (v, u) \<notin> B" by simp
-                          next
-                            assume "u \<noteq> w"
-                            show "u = w \<or> (v, u) \<notin> B"sorry
-                            (*proof(rule disjI2)*)
-                              
-                qed
-              qed
-            qed
-          qed
-        qed
-      qed
-    qed
-  qed
-  from A_C show "\<exists>A. perf_match_zerlegung A k" by auto
-qed         
-
-
-(*
   from k_reg_theorem_15 A1 A4 have A5: "(\<forall>B \<in> C. \<forall>v \<in> V. (\<exists>w \<in> V. (v, w) \<in> B \<and> (\<forall>u \<in> V. u=w \<or> (v, u) \<notin> B)))"
     by simp
   from A4 have A6: "(if k=0 then (C={} \<and> E={}) else 
@@ -468,7 +353,5 @@ qed
                         show "B2 = B \<or> a \<notin> B2"
                         proof(rule disjI2) oops
                           
-*)
-
 end
 end
